@@ -1,3 +1,5 @@
+  
+import configparser
 from datetime import datetime,date
 import os
 from pyspark.sql.types import *
@@ -5,7 +7,12 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import udf, col
 from pyspark.sql.functions import year, month, dayofmonth, hour, weekofyear, date_format, dayofweek
 
+
 def create_spark_session():
+    """
+        This function creates a spark instance with the right config 
+        setting ("spark.jars.packages", "org.apache.hadoop:hadoop-aws:2.7.0")
+    """
     spark = SparkSession \
         .builder \
         .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:2.7.0") \
@@ -14,6 +21,15 @@ def create_spark_session():
 
 
 def process_song_data(spark, input_data, output_data):
+    
+    """
+        This function creates read in raw json files from s3 source 
+        bucket, namely 's3a://udacity-dend/song_data'. It first reads
+        in the json file with inferred schema then populates the songs_table 
+        and artists_table dimentional tables with extracted columns from the read dataframe.
+        At last, all curated tables saved as parquet files into a s3 bucket.
+    """
+    
     # get filepath to song data file
     song_data = 's3a://udacity-dend/song_data/*/*/*/*.json'
 
@@ -27,7 +43,7 @@ def process_song_data(spark, input_data, output_data):
     songs_table = df_song_load.select("song_id","title","artist_id","year","duration").distinct()
     
     # write songs table to parquet files partitioned by year and artist
-    songs_table.write.partitionBy("year").format("parquet").save("{}songs.parquet".format(output_data))
+    songs_table.write.partitionBy("year","artist_id").format("parquet").save("{}songs.parquet".format(output_data))
 
     # extract columns to create artists table
     artists_table = df_song_load.selectExpr("artist_id","artist_name as name","artist_location as location","artist_latitude as lattitude","artist_longitude as longitude").distinct()
@@ -37,6 +53,16 @@ def process_song_data(spark, input_data, output_data):
 
 
 def process_log_data(spark, input_data, output_data):
+    
+     """
+        This function creates read in raw json files from s3 source 
+        bucket, namely 's3a://udacity-dend/log_data'. It first reads
+        in the json file with inferred schema then populates the users_table 
+        and time_table dimentional tables with extracted columns from the read dataframe.
+        As the last step, the function join these tables to produce songplays_table. 
+        At last, all curated tables saved as parquet files into a s3 bucket.
+    """
+
     # get filepath to log data file
     log_data  = 's3a://udacity-dend/log_data/*/*/*.json'
 
@@ -101,6 +127,10 @@ def process_log_data(spark, input_data, output_data):
 
 
 def main():
+    
+    '''
+        The main() function runs the above function in order.
+    '''
     spark = create_spark_session()
     input_data = "s3a://udacity-dend/"
     output_data = "s3a://dwh-dev-007/"
